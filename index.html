@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>美团外卖 - 点餐</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 隐藏滚动条但保持功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* 购物车动画 */
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        .cart-bounce {
+            animation: bounce 0.3s ease;
+        }
+        
+        /* 商品飞入动画 */
+        @keyframes flyIn {
+            0% { transform: translateY(20px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .item-fly-in {
+            animation: flyIn 0.4s ease-out;
+        }
+        
+        /* 分类激活状态 */
+        .category-active {
+            background-color: white;
+            color: #fbbf24;
+            border-left: 3px solid #fbbf24;
+            font-weight: 600;
+        }
+        
+        /* 骨架屏闪烁 */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+        
+        /* 底部弹出层 */
+        .slide-up {
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .slide-up.show {
+            transform: translateY(0);
+        }
+        
+        /* 遮罩层 */
+        .overlay {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* 选中状态 */
+        .selected-tag {
+            background-color: #fff7ed;
+            color: #f97316;
+            border-color: #f97316;
+        }
+        
+        /* 评分星星 */
+        .star-filled { color: #fbbf24; }
+        .star-empty { color: #e5e7eb; }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen overflow-hidden">
+
+    <!-- 顶部搜索栏 -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="flex items-center px-4 py-3 gap-3">
+            <div class="flex items-center text-gray-700 font-medium">
+                <i class="fas fa-chevron-left mr-1"></i>
+                <span class="text-sm">返回</span>
+            </div>
+            <div class="flex-1 relative">
+                <input type="text" placeholder="搜索商家、商品名称" 
+                    class="w-full bg-gray-100 rounded-full px-4 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+            <div class="flex items-center gap-3 text-gray-600">
+                <i class="fas fa-qrcode text-xl"></i>
+                <i class="fas fa-ellipsis-h text-xl"></i>
+            </div>
+        </div>
+        
+        <!-- 商家信息卡片 -->
+        <div class="px-4 pb-3">
+            <div class="flex gap-3 mt-2">
+                <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=150&h=150&fit=crop" 
+                    class="w-16 h-16 rounded-lg object-cover shadow-md" alt="商家logo">
+                <div class="flex-1">
+                    <h1 class="font-bold text-lg text-gray-800">必胜客（科技园店）</h1>
+                    <div class="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                        <span class="flex items-center gap-1">
+                            <i class="fas fa-star text-yellow-400"></i>
+                            <span class="text-gray-800 font-bold">4.8</span>
+                        </span>
+                        <span>月售 2000+</span>
+                        <span>人均 ¥45</span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                        <span class="bg-yellow-100 text-yellow-700 px-1 rounded">30分钟送达</span>
+                        <span>距离 1.2km</span>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center mb-1">
+                        <i class="fas fa-heart text-yellow-500"></i>
+                    </div>
+                    <span class="text-xs text-gray-500">收藏</span>
+                </div>
+            </div>
+            
+            <!-- 公告 -->
+            <div class="mt-2 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                <span class="bg-yellow-400 text-white px-1 rounded text-[10px]">公告</span>
+                <span class="truncate">欢迎光临，本店提供新鲜美味的披萨和意面，现在下单享满减优惠！</span>
+            </div>
+        </div>
+        
+        <!-- 优惠券标签 -->
+        <div class="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+            <div class="flex-shrink-0 bg-red-50 border border-red-200 rounded px-2 py-1 text-xs text-red-600 flex items-center gap-1">
+                <i class="fas fa-yen-sign"></i>
+                <span>满30减15</span>
+            </div>
+            <div class="flex-shrink-0 bg-red-50 border border-red-200 rounded px-2 py-1 text-xs text-red-600 flex items-center gap-1">
+                <i class="fas fa-ticket-alt"></i>
+                <span>领取红包</span>
+            </div>
+            <div class="flex-shrink-0 bg-blue-50 border border-blue-200 rounded px-2 py-1 text-xs text-blue-600 flex items-center gap-1">
+                <i class="fas fa-truck"></i>
+                <span>满20免配送费</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容区 -->
+    <div class="flex h-[calc(100vh-180px)]">
+        <!-- 左侧分类栏 -->
+        <aside class="w-24 bg-gray-100 overflow-y-auto no-scrollbar" id="categoryList">
+            <!-- 动态生成分类 -->
+        </aside>
+
+        <!-- 右侧商品列表 -->
+        <main class="flex-1 bg-white overflow-y-auto no-scrollbar pb-20" id="foodList">
+            <!-- 动态生成商品 -->
+        </main>
+    </div>
+
+    <!-- 底部购物车栏 -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white shadow-lg z-40 transition-transform duration-300" id="cartBar">
+        <div class="flex items-center px-4 py-2 bg-gray-900 text-white relative">
+            <div class="relative -mt-8 mr-3" onclick="toggleCartDetail()">
+                <div class="w-14 h-14 bg-gray-800 rounded-full flex items-center justify-center border-4 border-gray-900 relative" id="cartIcon">
+                    <i class="fas fa-shopping-cart text-2xl text-gray-400"></i>
+                    <span id="cartBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                </div>
+                <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 text-gray-900 font-bold text-lg" id="totalPrice">¥0</div>
+            </div>
+            <div class="flex-1 ml-2">
+                <div class="text-xs text-gray-400 line-through" id="originalPrice">¥0</div>
+                <div class="text-xs text-gray-400">另需配送费 ¥5</div>
+            </div>
+            <button onclick="checkout()" class="bg-yellow-400 text-gray-900 px-6 py-2 rounded-full font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed" id="checkoutBtn" disabled>
+                去结算
+            </button>
+        </div>
+    </div>
+
+    <!-- 购物车详情弹窗 -->
+    <div class="fixed inset-0 z-50 pointer-events-none">
+        <div class="overlay absolute inset-0 bg-black bg-opacity-50 pointer-events-auto" id="cartOverlay" onclick="toggleCartDetail()"></div>
+        <div class="slide-up absolute bottom-[60px] left-0 right-0 bg-white rounded-t-2xl max-h-[60vh] pointer-events-auto" id="cartDetail">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                <span class="font-bold text-gray-700">已选商品</span>
+                <button onclick="clearCart()" class="text-gray-400 text-sm flex items-center gap-1">
+                    <i class="fas fa-trash-alt"></i>
+                    清空
+                </button>
+            </div>
+            <div class="overflow-y-auto max-h-[40vh] p-4 space-y-4" id="cartItems">
+                <!-- 动态生成购物车商品 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 商品详情弹窗 -->
+    <div class="fixed inset-0 z-50 hidden" id="productModal">
+        <div class="absolute inset-0 bg-black bg-opacity-60" onclick="closeProductModal()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto animate-[flyIn_0.3s_ease-out]">
+            <button onclick="closeProductModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center z-10">
+                <i class="fas fa-times text-gray-600"></i>
+            </button>
+            <img id="modalImg" src="" class="w-full h-48 object-cover rounded-lg mb-4" alt="">
+            <h2 id="modalTitle" class="text-xl font-bold text-gray-800 mb-2"></h2>
+            <p id="modalDesc" class="text-gray-500 text-sm mb-4"></p>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-2xl font-bold text-red-500">¥<span id="modalPrice"></span></span>
+                <span class="text-gray-400 line-through text-sm">¥<span id="modalOriginalPrice"></span></span>
+            </div>
+            
+            <!-- 规格选择 -->
+            <div class="mb-4" id="specsContainer">
+                <h3 class="font-bold text-sm mb-2">规格</h3>
+                <div class="flex gap-2 flex-wrap" id="specsList">
+                    <!-- 动态生成规格 -->
+                </div>
+            </div>
+            
+            <button onclick="addToCartFromModal()" class="w-full bg-yellow-400 text-gray-900 py-3 rounded-full font-bold text-lg shadow-lg active:scale-95 transition-transform">
+                加入购物车
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 数据定义
+        const categories = [
+            { id: 'hot', name: '热销', icon: '🔥' },
+            { id: 'discount', name: '优惠', icon: '🏷️' },
+            { id: 'combo', name: '套餐', icon: '🍱' },
+            { id: 'pizza', name: '披萨', icon: '🍕' },
+            { id: 'pasta', name: '意面', icon: '🍝' },
+            { id: 'snack', name: '小食', icon: '🍟' },
+            { id: 'drink', name: '饮品', icon: '🥤' },
+            { id: 'dessert', name: '甜点', icon: '🍰' }
+        ];
+
+        const products = [
+            { id: 1, category: 'hot', name: '超级至尊披萨', desc: '精选火腿、牛肉、猪肉粒，搭配丰富蔬菜', price: 59, originalPrice: 79, sales: 1200, img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop', tags: ['招牌', '月售1200+'] },
+            { id: 2, category: 'hot', name: '榴莲波波披萨', desc: '泰国金枕榴莲，浓郁香甜', price: 69, originalPrice: 89, sales: 890, img: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&h=300&fit=crop', tags: ['新品', '月售890+'] },
+            { id: 3, category: 'combo', name: '双人超值套餐', desc: '9寸披萨+意面+小食+饮料2杯', price: 99, originalPrice: 138, sales: 560, img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop', tags: ['省39元'] },
+            { id: 4, category: 'combo', name: '家庭欢聚套餐', desc: '12寸披萨+3份小食+4杯饮料', price: 149, originalPrice: 208, sales: 320, img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=300&fit=crop', tags: ['省59元'] },
+            { id: 5, category: 'pizza', name: '美式精选披萨', desc: '腊肉肠、香肠、火腿，肉食爱好者首选', price: 55, originalPrice: 75, sales: 450, img: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&h=300&fit=crop', tags: [] },
+            { id: 6, category: 'pizza', name: '海鲜至尊披萨', desc: '鲜虾、鱿鱼、蟹肉棒，鲜美海味', price: 65, originalPrice: 85, sales: 380, img: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop', tags: ['推荐'] },
+            { id: 7, category: 'pasta', name: '经典意式肉酱面', desc: '秘制肉酱，浓郁番茄风味', price: 32, originalPrice: 42, sales: 670, img: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=400&h=300&fit=crop', tags: ['热销'] },
+            { id: 8, category: 'pasta', name: '奶油培根意面', desc: '进口奶油，香煎培根', price: 35, originalPrice: 45, sales: 430, img: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400&h=300&fit=crop', tags: [] },
+            { id: 9, category: 'snack', name: '浓情烤翅（4只）', desc: '奥尔良风味，外焦里嫩', price: 28, originalPrice: 36, sales: 890, img: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=400&h=300&fit=crop', tags: ['必点'] },
+            { id: 10, category: 'snack', name: '黄金薯条', desc: '精选土豆，金黄酥脆', price: 15, originalPrice: 20, sales: 1200, img: 'https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?w=400&h=300&fit=crop', tags: [] },
+            { id: 11, category: 'drink', name: '冰镇可乐（大杯）', desc: '清爽解渴', price: 12, originalPrice: 15, sales: 1500, img: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&h=300&fit=crop', tags: [] },
+            { id: 12, category: 'dessert', name: '提拉米苏', desc: '意式经典，入口即化', price: 25, originalPrice: 32, sales: 340, img: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=300&fit=crop', tags: ['推荐'] }
+        ];
+
+        let cart = {};
+        let currentCategory = 'hot';
+        let currentProduct = null;
+        let selectedSpec = null;
+
+        // 初始化
+        function init() {
+            renderCategories();
+            renderProducts();
+            updateCartUI();
+        }
+
+        // 渲染分类
+        function renderCategories() {
+            const container = document.getElementById('categoryList');
+            container.innerHTML = categories.map(cat => `
+                <div class="p-3 text-sm text-gray-600 cursor-pointer transition-all ${cat.id === currentCategory ? 'category-active' : 'hover:bg-gray-200'}" 
+                     onclick="switchCategory('${cat.id}')">
+                    <div class="flex flex-col items-center gap-1">
+                        <span class="text-lg">${cat.icon}</span>
+                        <span>${cat.name}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 切换分类
+        function switchCategory(id) {
+            currentCategory = id;
+            renderCategories();
+            renderProducts();
+        }
+
+        // 渲染商品
+        function renderProducts() {
+            const container = document.getElementById('foodList');
+            const filtered = products.filter(p => p.category === currentCategory);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-400">暂无商品</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map((product, index) => {
+                const count = cart[product.id] || 0;
+                return `
+                <div class="flex gap-3 p-3 border-b border-gray-100 item-fly-in" style="animation-delay: ${index * 0.05}s">
+                    <img src="${product.img}" class="w-24 h-24 rounded-lg object-cover flex-shrink-0" alt="${product.name}" onclick="showProductDetail(${product.id})">
+                    <div class="flex-1 flex flex-col justify-between">
+                        <div onclick="showProductDetail(${product.id})">
+                            <h3 class="font-bold text-gray-800 text-base mb-1">${product.name}</h3>
+                            <p class="text-xs text-gray-500 line-clamp-2 mb-2">${product.desc}</p>
+                            <div class="flex gap-1 mb-1">
+                                ${product.tags.map(tag => `<span class="text-[10px] border border-red-200 text-red-500 px-1 rounded">${tag}</span>`).join('')}
+                            </div>
+                            <div class="text-xs text-gray-400">月售${product.sales}</div>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-red-500 font-bold text-lg">¥${product.price}</span>
+                                <span class="text-gray-400 text-xs line-through">¥${product.originalPrice}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                ${count > 0 ? `
+                                    <button onclick="updateCart(${product.id}, -1)" class="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 active:bg-gray-100">
+                                        <i class="fas fa-minus text-xs"></i>
+                                    </button>
+                                    <span class="text-sm font-medium w-4 text-center">${count}</span>
+                                ` : ''}
+                                <button onclick="updateCart(${product.id}, 1)" class="w-6 h-6 rounded-full bg-yellow-400 flex items-center justify-center text-gray-900 shadow-md active:scale-90 transition-transform">
+                                    <i class="fas fa-plus text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // 更新购物车
+        function updateCart(productId, delta) {
+            if (!cart[productId]) cart[productId] = 0;
+            cart[productId] += delta;
+            if (cart[productId] <= 0) delete cart[productId];
+            
+            // 添加动画效果
+            const btn = event.target.closest('button');
+            if (delta > 0 && btn) {
+                btn.classList.add('cart-bounce');
+                setTimeout(() => btn.classList.remove('cart-bounce'), 300);
+            }
+            
+            renderProducts();
+            updateCartUI();
+        }
+
+        // 更新购物车UI
+        function updateCartUI() {
+            const total = Object.entries(cart).reduce((sum, [id, count]) => {
+                const product = products.find(p => p.id == id);
+                return sum + (product ? product.price * count : 0);
+            }, 0);
+            
+            const count = Object.values(cart).reduce((a, b) => a + b, 0);
+            const originalTotal = Object.entries(cart).reduce((sum, [id, count]) => {
+                const product = products.find(p => p.id == id);
+                return sum + (product ? product.originalPrice * count : 0);
+            }, 0);
+
+            document.getElementById('totalPrice').textContent = `¥${total}`;
+            document.getElementById('originalPrice').textContent = `¥${originalTotal}`;
+            
+            const badge = document.getElementById('cartBadge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+                document.getElementById('cartIcon').classList.add('cart-bounce');
+                setTimeout(() => document.getElementById('cartIcon').classList.remove('cart-bounce'), 300);
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            document.getElementById('checkoutBtn').disabled = count === 0;
+            
+            renderCartDetail();
+        }
+
+        // 渲染购物车详情
+        function renderCartDetail() {
+            const container = document.getElementById('cartItems');
+            const items = Object.entries(cart).filter(([_, count]) => count > 0);
+            
+            if (items.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 py-8">购物车是空的</div>';
+                return;
+            }
+
+            container.innerHTML = items.map(([id, count]) => {
+                const product = products.find(p => p.id == id);
+                return `
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-800">${product.name}</div>
+                        <div class="text-xs text-gray-500">¥${product.price}</div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="updateCart(${id}, -1)" class="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center text-gray-600">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <span class="w-4 text-center font-medium">${count}</span>
+                        <button onclick="updateCart(${id}, 1)" class="w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center text-gray-900">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // 切换购物车详情显示
+        function toggleCartDetail() {
+            const detail = document.getElementById('cartDetail');
+            const overlay = document.getElementById('cartOverlay');
+            const isShow = detail.classList.contains('show');
+            
+            if (isShow) {
+                detail.classList.remove('show');
+                overlay.classList.remove('show');
+            } else {
+                if (Object.keys(cart).length === 0) return;
+                detail.classList.add('show');
+                overlay.classList.add('show');
+            }
+        }
+
+        // 清空购物车
+        function clearCart() {
+            if (confirm('确定清空购物车吗？')) {
+                cart = {};
+                renderProducts();
+                updateCartUI();
+                toggleCartDetail();
+            }
+        }
+
+        // 显示商品详情
+        function showProductDetail(productId) {
+            const product = products.find(p => p.id === productId);
+            currentProduct = product;
+            selectedSpec = 'regular';
+            
+            document.getElementById('modalImg').src = product.img;
+            document.getElementById('modalTitle').textContent = product.name;
+            document.getElementById('modalDesc').textContent = product.desc;
+            document.getElementById('modalPrice').textContent = product.price;
+            document.getElementById('modalOriginalPrice').textContent = product.originalPrice;
+            
+            // 规格选择
+            const specs = [
+                { id: 'regular', name: '常规', price: product.price },
+                { id: 'large', name: '大份', price: product.price + 20 }
+            ];
+            
+            document.getElementById('specsList').innerHTML = specs.map(spec => `
+                <button onclick="selectSpec('${spec.id}', ${spec.price})" 
+                    class="px-4 py-2 rounded-lg border ${selectedSpec === spec.id ? 'selected-tag border-orange-500' : 'border-gray-200 text-gray-600'} text-sm transition-all">
+                    ${spec.name} ¥${spec.price}
+                </button>
+            `).join('');
+            
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+
+        // 选择规格
+        function selectSpec(spec, price) {
+            selectedSpec = spec;
+            document.getElementById('modalPrice').textContent = price;
+            showProductDetail(currentProduct.id); // 重新渲染选中状态
+        }
+
+        // 从弹窗加入购物车
+        function addToCartFromModal() {
+            if (!currentProduct) return;
+            updateCart(currentProduct.id, 1);
+            closeProductModal();
+        }
+
+        // 关闭商品详情
+        function closeProductModal() {
+            document.getElementById('productModal').classList.add('hidden');
+            currentProduct = null;
+        }
+
+        // 结算
+        function checkout() {
+            const total = Object.entries(cart).reduce((sum, [id, count]) => {
+                const product = products.find(p => p.id == id);
+                return sum + product.price * count;
+            }, 0);
+            
+            alert(`订单总额：¥${total + 5}\n配送费：¥5\n\n演示模式：结算功能需要后端支持`);
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
